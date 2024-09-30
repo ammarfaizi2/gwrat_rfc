@@ -1,7 +1,7 @@
 gwrat_rfc_0001.txt
 
-Ammar Faizi
-2024-09-30
+Date: 2024-09-30
+Author: Ammar Faizi <ammarfaizi2@gnuweeb.org>
 
 GWRat Communication Protocol v1
 
@@ -9,15 +9,16 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
 "SHOULD", "SHOULD NOT", "RECOMMENDED",  "MAY", and "OPTIONAL" in this
 document are to be interpreted as described in RFC 2119.
 
-1. Introduction
-----------------
+
+Section (1): Introduction
+-------------------------
 This document describes the GWRat protocol, a communication protocol
 between the GWRat client and the GWRat server. GWRat protocol uses
 a TCP-based connection to communicate.
 
 
-2. Communication Protocol
--------------------------
+Section (2): Communication Protocol
+-----------------------------------
 All integers defined in the struct are in network byte order (big
 endian) unless otherwise specified. Each message sent between the
 client and the server MUST follow the layout described in the `struct
@@ -59,68 +60,337 @@ messages. Next sections describe the types of messages that can be
 sent between the client and the server.
 
 Available message types:
-  1) `GWRAT_PKT_HANDSHAKE`: Handshake.
-  2) `GWRAT_PKT_DEVICE_INFO`: Device information.
-  3) `GWRAT_PKT_ERROR`: Error message.
-  4) `GWRAT_PKT_CLOSE`: Instruction to close the connection.
+  0) `GWRAT_MSG_RESV`: Reserved for future use.
+  1) `GWRAT_MSG_HANDSHAKE`: Handshake.
+  2) `GWRAT_MSG_DEVICE_INFO`: Device information.
+  3) `GWRAT_MSG_ERROR`: Error message.
+  4) `GWRAT_MSG_CLOSE`: Instruction to close the connection.
+  5) `GWRAT_MSG_PING`: Ping message.
+  6) `GWRAT_MSG_PONG`: Pong message.
+  7) `GWRAT_MSG_SHELL_EXEC`: Execute a shell command.
+  8) `GWRAT_MSG_SHELL_EXEC_RES`: Shell command execution result.
 
-
-3. Message Exchanging Procedure
--------------------------------
+Section (3): Message Exchanging Procedure
+-----------------------------------------
 This section describes the procedure of the message exchanging between
 the client and the server. After the connection is established, the
 following steps MUST be followed:
 
-  1) Client sends `GWRAT_PKT_HANDSHAKE` message containing the
+  1) Client sends `GWRAT_MSG_HANDSHAKE` message containing the
      client version info.
 
-  2) Server receives `GWRAT_PKT_HANDSHAKE` message and it checks
+  2) Server receives `GWRAT_MSG_HANDSHAKE` message and it checks
      whether the client version is compatible. There are two cases:
 
        - If the client version is compatible, the server sends
-         `GWRAT_PKT_HANDSHAKE` message to the client containing the
+         `GWRAT_MSG_HANDSHAKE` message to the client containing the
          server version info.
 
        - If the client version is not compatible, the server sends
-         `GWRAT_PKT_ERROR` message to the client containing the error
-         message. And then the server sends `GWRAT_PKT_CLOSE` message
+         `GWRAT_MSG_ERROR` message to the client containing the error
+         message. And then the server sends `GWRAT_MSG_CLOSE` message
          to the client and closes the connection. End of the procedure.
 
-  3) Client receives the `GWRAT_PKT_HANDSHAKE` message from the server
+  3) Client receives the `GWRAT_MSG_HANDSHAKE` message from the server
      and checks whether the server version is compatible. There are
      two cases:
 
        - If the server version is compatible, the client sends
-         `GWRAT_PKT_HANDSHAKE` message to the server containing the
+         `GWRAT_MSG_HANDSHAKE` message to the server containing the
          client version info.
 
        - If the server version is not compatible, the client sends
-         `GWRAT_PKT_ERROR` message to the server containing the error
-         message. And then the client sends `GWRAT_PKT_CLOSE` message
+         `GWRAT_MSG_ERROR` message to the server containing the error
+         message. And then the client sends `GWRAT_MSG_CLOSE` message
          to the server and closes the connection. End of the procedure.
 
-  4) Client sends `GWRAT_PKT_DEVICE_INFO` message containing the
+  4) Client sends `GWRAT_MSG_DEVICE_INFO` message containing the
      device information.
 
-  5) Server receives `GWRAT_PKT_DEVICE_INFO` message.
+  5) Server receives `GWRAT_MSG_DEVICE_INFO` message.
 
   6) The connection is properly established. The client and the server
      can exchange other types of messages until the connection is
      closed.
 
 
-3. msg: GWRAT_PKT_HANDSHAKE 0x01
----------------------------
-GWRAT_PKT_HANDSHAKE = 0x01
+Section (4): msg: GWRAT_MSG_HANDSHAKE 0x01
+------------------------------------------
+GWRAT_MSG_HANDSHAKE = 0x01
 
 Used by: Client, Server
 
 Message layout:
 ```
-    struct gwrat_handshake {
+    struct gwrat_msg_handshake {
         u8  major;
         u8  minor;
         u8  patch;
         u8  extra[29];
     } __attribute__((__packed__));
 ```
+
+This message is used to exchange the version information between the
+GWRat client and the GWRat server. It's the first message sent by the
+client to the server after the TCP connection is established. The
+server MUST respond with this message containing the server version
+info if the client version is compatible.
+
+In the current version of the protocol, the major version MUST be set
+to 1. If the major version is not set to 1, the client and the server
+MUST reject the connection by sending `GWRAT_MSG_ERROR` message to the
+other side and then sending `GWRAT_MSG_CLOSE` message to close the
+connection.
+
+The minor version and the patch version can be any value. The extra
+field MAY contain additional GWRat version information like the git
+commit hash, build date, etc.
+
+The `extra` field is optional. If the `extra` field is used, it SHOULD
+contain a null-terminated string. The server and the client SHOULD
+ensure it does not perform out of bounds access when reading the
+`extra` field just in case the `extra` field is not null-terminated.
+
+
+Section (5): msg: GWRAT_MSG_DEVICE_INFO 0x02
+--------------------------------------------
+GWRAT_MSG_DEVICE_INFO = 0x02
+
+Used by: Client
+
+Message layout:
+```
+    struct gwrat_os_info_win32 {
+        u8   name[32];
+        u8   version[32];
+        u8   build[32];
+        u8   reserved[32];
+    } __attribute__((__packed__));
+
+    struct gwrat_os_info_linux {
+        __be64  swap;
+        u8      distro[32];
+        u8      version[32];
+        u8      codename[32];
+        u8      reserved[32];
+    } __attribute__((__packed__));
+
+    struct gwrat_os_info_darwin {
+        u8   name[32];
+        u8   version[32];
+        u8   build[32];
+        u8   reserved[32];
+    } __attribute__((__packed__));
+
+    struct gwrat_os_info {
+        u8 os_type;
+        union {
+            struct gwrat_os_info_win32  win32;
+            struct gwrat_os_info_linux  linux;
+            struct gwrat_os_info_darwin darwin;
+        };
+    } __attribute__((__packed__));
+
+    struct gwrat_hw_info {
+        __be16  arch_type;
+        __be32  nr_cpu;
+        __be64  mem;
+    };
+
+    struct gwrat_msg_device_info {
+        struct gwrat_os_info    os_info;
+        struct gwrat_hw_info    hw_info;
+    } __attribute__((__packed__));
+```
+
+This message is used to inform the server about the client device
+information. The client MUST send this message after the handshake
+procedure is completed.
+
+The `os_info` field contains the client operating system information.
+
+The `os_type` field is used to determine the type of the operating
+system. The `os_type` field can be one of the following values:
+
+  - `GWRAT_OS_WIN32`  (0x01): Windows.
+  - `GWRAT_OS_LINUX`  (0x02): Linux.
+  - `GWRAT_OS_DARWIN` (0x03): Darwin (macOS).
+
+The `os_info` field contains the operating system information based on
+the `os_type` field. The `os_info` field is a union that can be one of
+the following types:
+
+  - `gwrat_os_info_win32`: Windows OS information.
+  - `gwrat_os_info_linux`: Linux OS information.
+  - `gwrat_os_info_darwin`: Darwin OS information.
+
+The `hw_info` field contains the client hardware information.
+
+The `arch_type` field is used to determine the architecture type of
+the client. The `arch_type` field can be one of the following values:
+
+  - `GWRAT_ARCH_X86`    (0x01)
+  - `GWRAT_ARCH_X86_64` (0x02)
+  - `GWRAT_ARCH_ARM`    (0x03)
+  - `GWRAT_ARCH_ARM64`  (0x04)
+
+The protocol does not care about the validity of the values set in this
+message. The server MAY not rely on the values set in this message to
+determine the client device information. The server SHOULD use this
+message as a hint to determine the client device information.
+
+
+Section (6): msg: GWRAT_MSG_ERROR 0x03
+--------------------------------------
+GWRAT_MSG_ERROR = 0x03
+
+Used by: Client, Server
+
+Message layout:
+```
+    struct gwrat_msg_error {
+        __be16  code;
+        u16     msg_str_len;
+        u8      msg_str[];
+    } __attribute__((__packed__));
+```
+
+This message is used to inform the other side about the error
+occurred. The `code` field contains the error code. The `msg_str`
+field contains the error message in a null-terminated string.
+
+The `msg_str` field is optional. If the `msg_str` field is used, the
+`msg_str_len` field SHOULD contain the length of the `msg_str` field.
+The side that receives this message SHOULD ensure it does not perform
+out of bounds access when reading the `msg_str` field.
+
+Available error codes:
+  - `GWRAT_ERR_UNKNOWN` (0x01): Unknown error.
+  - `GWRAT_ERR_VERSION` (0x02): Version unsupported.
+  - `GWRAT_ERR_INVAL`   (0x03): An endpoint received an invalid message.
+  - `GWRAT_ERR_NOMEM`   (0x04): Out of memory.
+  - `GWRAT_ERR_AGAIN`   (0x05): Resource temporarily unavailable.
+  - `GWRAT_ERR_TIMEOUT` (0x06): Operation timed out.
+
+
+Section (7): msg: GWRAT_MSG_CLOSE 0x04
+--------------------------------------
+GWRAT_MSG_CLOSE = 0x04
+
+Used by: Client, Server
+
+Message layout:
+```
+    struct gwrat_msg_close {
+        u8  __resv;
+    } __attribute__((__packed__));
+```
+
+This message is used to inform the other side to close the connection.
+
+The `__resv` field is reserved and MUST be set to 0. The other side
+MUST close the connection after receiving this message.
+
+
+Section (8): msg: GWRAT_MSG_PING 0x05
+-------------------------------------
+GWRAT_MSG_PING = 0x05
+
+Used by: Client, Server
+
+Message layout:
+```
+    struct gwrat_msg_ping {
+        __be64  ts;
+    } __attribute__((__packed__));
+```
+
+This message is used to measure the latency between the client and the
+server.
+
+The `ts` field contains the UNIX timestamp in milliseconds when the
+message is sent. The server MUST respond to this message with the
+`GWRAT_MSG_PONG` message.
+
+
+Section (8): msg: GWRAT_MSG_PONG 0x06
+-------------------------------------
+GWRAT_MSG_PONG = 0x06
+
+Used by: Client, Server
+
+Message layout:
+```
+    struct gwrat_msg_pong {
+        __be64  ping_ts;
+        __be64  pong_ts;
+    } __attribute__((__packed__));
+```
+
+This message is used to respond to the `GWRAT_MSG_PING` message.
+
+The `ping_ts` field contains the UNIX timestamp received from the
+`GWRAT_MSG_PING` message. The `pong_ts` field contains the UNIX
+timestamp in milliseconds when the message is sent.
+
+
+Section (9): msg: GWRAT_MSG_SHELL_EXEC 0x07
+-------------------------------------------
+GWRAT_MSG_SHELL_EXEC = 0x07
+
+Used by: Server
+
+Message layout:
+```
+    struct gwrat_msg_shell_exec {
+        __be64     cmd_id;
+        __be32     cmd_len;
+        __be32     __resv;
+        u8      cmd[];
+    } __attribute__((__packed__));
+```
+
+This message is used to execute a shell command on the client side.
+
+The `cmd_id` field is used to identify the command and its response.
+
+The `cmd_len` field contains the length of the `cmd` field.
+
+The `__resv` field is reserved and MUST be set to 0.
+
+The `cmd` field contains the string of the shell command to be
+executed by the client.
+
+The server sends this message to the client. The client SHOULD execute
+the command and send the output to the server using the
+`GWRAT_MSG_SHELL_EXEC_RES` message.
+
+
+Section (10): msg: GWRAT_MSG_SHELL_EXEC_RES 0x08
+------------------------------------------------
+GWRAT_MSG_SHELL_EXEC_RES = 0x08
+
+Used by: Client
+
+Message layout:
+```
+    struct gwrat_msg_shell_exec_res {
+        __be64     cmd_id;
+        __be32     res_len;
+        __be32     __resv;
+        u8        res[];
+    } __attribute__((__packed__));
+```
+
+This message is used to send the output of the shell command executed
+by the client to the server.
+
+The `cmd_id` field contains the command ID received from the
+corresponding `GWRAT_MSG_SHELL_EXEC` message.
+
+The `res_len` field contains the length of the `res` field.
+
+The `__resv` field is reserved and MUST be set to 0.
+
+The `res` field contains the output of the shell command executed by
+the client.
