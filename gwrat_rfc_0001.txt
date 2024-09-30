@@ -70,6 +70,7 @@ Available message types:
   7) `GWRAT_MSG_SHELL_EXEC`: Execute a shell command.
   8) `GWRAT_MSG_SHELL_EXEC_RES`: Shell command execution result.
 
+
 Section (3): Message Exchanging Procedure
 -----------------------------------------
 This section describes the procedure of the message exchanging between
@@ -343,9 +344,9 @@ Used by: Server
 Message layout:
 ```
     struct gwrat_msg_shell_exec {
-        __be64     cmd_id;
-        __be32     cmd_len;
-        __be32     __resv;
+        __be64  cmd_id;
+        __be32  cmd_len;
+        __be32  __resv;
         u8      cmd[];
     } __attribute__((__packed__));
 ```
