@@ -1,0 +1,126 @@
+gwrat_rfc_0001.txt
+
+Ammar Faizi
+2024-09-30
+
+GWRat Communication Protocol v1
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED",  "MAY", and "OPTIONAL" in this
+document are to be interpreted as described in RFC 2119.
+
+1. Introduction
+----------------
+This document describes the GWRat protocol, a communication protocol
+between the GWRat client and the GWRat server. GWRat protocol uses
+a TCP-based connection to communicate.
+
+
+2. Communication Protocol
+-------------------------
+All integers defined in the struct are in network byte order (big
+endian) unless otherwise specified. Each message sent between the
+client and the server MUST follow the layout described in the `struct
+gwrat_msg`. The `struct gwrat_msg` contains a header part and a union
+part as follows:
+
+```
+    struct gwrat_msg_hdr {
+        u8      type;
+        u8      __resv;
+        __be16  length;
+    } __attribute__((__packed__));
+
+    struct gwrat_msg {
+        struct gwrat_msg_hdr  hdr;
+        union gwrat_msg_data  data;
+    } __attribute__((__packed__));
+```
+
+There are two parts in the `struct gwrat_msg`:
+
+  1) `hdr` is the header part of the struct. It contains the following
+     fields:
+
+     a) `type`: The type of the message. It's used to determine the
+	type to be interpreted in the union part of the struct.
+
+     b) `__resv`: Reserved field for future use. It MUST be set to 0
+        in the current version of the protocol. Currently, it's
+	only used for padding purposes.
+
+     c) `length`: The length of the union part of the struct.
+
+  2) `data` is the union part of the struct. The type of the union
+     part is determined by the `type` field.
+
+The union part of the struct can be extended to various types of
+messages. Next sections describe the types of messages that can be
+sent between the client and the server.
+
+Available message types:
+  1) `GWRAT_PKT_HANDSHAKE`: Handshake.
+  2) `GWRAT_PKT_DEVICE_INFO`: Device information.
+  3) `GWRAT_PKT_ERROR`: Error message.
+  4) `GWRAT_PKT_CLOSE`: Instruction to close the connection.
+
+
+3. Message Exchanging Procedure
+-------------------------------
+This section describes the procedure of the message exchanging between
+the client and the server. After the connection is established, the
+following steps MUST be followed:
+
+  1) Client sends `GWRAT_PKT_HANDSHAKE` message containing the
+     client version info.
+
+  2) Server receives `GWRAT_PKT_HANDSHAKE` message and it checks
+     whether the client version is compatible. There are two cases:
+
+       - If the client version is compatible, the server sends
+         `GWRAT_PKT_HANDSHAKE` message to the client containing the
+         server version info.
+
+       - If the client version is not compatible, the server sends
+         `GWRAT_PKT_ERROR` message to the client containing the error
+         message. And then the server sends `GWRAT_PKT_CLOSE` message
+         to the client and closes the connection. End of the procedure.
+
+  3) Client receives the `GWRAT_PKT_HANDSHAKE` message from the server
+     and checks whether the server version is compatible. There are
+     two cases:
+
+       - If the server version is compatible, the client sends
+         `GWRAT_PKT_HANDSHAKE` message to the server containing the
+         client version info.
+
+       - If the server version is not compatible, the client sends
+         `GWRAT_PKT_ERROR` message to the server containing the error
+         message. And then the client sends `GWRAT_PKT_CLOSE` message
+         to the server and closes the connection. End of the procedure.
+
+  4) Client sends `GWRAT_PKT_DEVICE_INFO` message containing the
+     device information.
+
+  5) Server receives `GWRAT_PKT_DEVICE_INFO` message.
+
+  6) The connection is properly established. The client and the server
+     can exchange other types of messages until the connection is
+     closed.
+
+
+3. msg: GWRAT_PKT_HANDSHAKE 0x01
+---------------------------
+GWRAT_PKT_HANDSHAKE = 0x01
+
+Used by: Client, Server
+
+Message layout:
+```
+    struct gwrat_handshake {
+        u8  major;
+        u8  minor;
+        u8  patch;
+        u8  extra[29];
+    } __attribute__((__packed__));
+```
