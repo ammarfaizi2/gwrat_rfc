@@ -168,7 +168,6 @@ Message layout:
     } __attribute__((__packed__));
 
     struct gwrat_os_info_linux {
-        __be64  swap;
         u8      distro[32];
         u8      version[32];
         u8      codename[32];
@@ -195,7 +194,8 @@ Message layout:
         __be16  arch_type;
         __be32  nr_cpu;
         __be64  mem;
-    };
+        __be64  swap;
+    } __attribute__((__packed__));
 
     struct gwrat_msg_device_info {
         struct gwrat_os_info    os_info;

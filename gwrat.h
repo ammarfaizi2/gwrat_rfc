@@ -53,7 +53,6 @@ struct gwrat_os_info_win32 {
 } __attribute__((__packed__));
 
 struct gwrat_os_info_linux {
-	__be64	swap;
 	u8	distro[32];
 	u8	version[32];
 	u8	codename[32];
@@ -80,7 +79,8 @@ struct gwrat_hw_info {
 	__be16	arch_type;
 	__be32	nr_cpu;
 	__be64	mem;
-};
+	__be64	swap;
+} __attribute__((__packed__));
 
 
 struct gwrat_msg_hdr {
