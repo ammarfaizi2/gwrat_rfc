@@ -1,0 +1,59 @@
+gwrat_rfc_0001.txt
+
+Ammar Faizi
+2024-09-30
+
+GWRat Communication Protocol v1
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED",  "MAY", and "OPTIONAL" in this
+document are to be interpreted as described in RFC 2119.
+
+1. Introduction
+----------------
+This document describes the GWRat protocol, a communication protocol
+between the GWRat client and the GWRat server. GWRat protocol uses
+a TCP-based connection to communicate.
+
+
+2. Communication Protocol
+-------------------------
+
+All integers defined in the struct are in network byte order (big
+endian).
+
+Each message sent between the client and the server MUST follow the
+layout described in the `struct gwrat_msg`. The `struct gwrat_msg`
+contains a header part and a union part as follows:
+
+	struct gwrat_msg_hdr {
+		u8			type;
+		u8			__resv;
+		__be16			length;
+	} __attribute__((__packed__));
+
+	struct gwrat_msg {
+		struct gwrat_msg_hdr	hdr;
+		union gwrat_msg_data	data;
+	} __attribute__((__packed__));
+
+There are two parts in the `struct gwrat_msg`:
+
+  1) `hdr` is the header part of the struct. It contains the following
+     fields:
+
+     a) `type`: The type of the message. It's used to determine the
+	type to be interpreted in the union part of the struct.
+
+     b) `__resv`: Reserved field for future use. It MUST be set to 0
+        in the current version of the protocol. Currently, it's
+	only used for padding purposes.
+
+     c) `length`: The length of the union part of the struct.
+
+  2) `data` is the union part of the struct. The type of the union
+     part is determined by the `type` field.
+
+The union part of the struct can be extended to various types of
+messages. Next sections describe the types of messages that can be
+sent between the client and the server.
